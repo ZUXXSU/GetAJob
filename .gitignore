@@ -31,3 +31,7 @@ Thumbs.db
 
 # Claude / local tooling
 .claude/
+
+# Personal resume files — user provides their own
+*.pdf
+questions.md

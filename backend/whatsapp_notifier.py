@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 _TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 _TWILIO_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")  # Twilio sandbox default
-_TWILIO_TO = os.getenv("TWILIO_WHATSAPP_TO", "")  # e.g. whatsapp:+919372923253
+_TWILIO_TO = os.getenv("TWILIO_WHATSAPP_TO", "")  # format: whatsapp:+<country><number>
 
 
 def whatsapp_available() -> bool:

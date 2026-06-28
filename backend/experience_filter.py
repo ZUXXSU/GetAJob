@@ -1,6 +1,6 @@
 """
 Experience requirement extractor and qualifier.
-Checks if a job's experience requirement matches Hardik's ~2 years.
+Checks if a job's experience requirement matches the candidate's years.
 """
 import re
 from typing import Optional

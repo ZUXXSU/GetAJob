@@ -22,7 +22,10 @@ from gemini import generate_cover_letter, select_best_resume
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_RESUME_PDF = os.path.join(os.path.dirname(__file__), "..", "HARDIK KOLGE.pdf")
+_DEFAULT_RESUME_PDF = os.getenv(
+    "DEFAULT_RESUME_PDF",
+    os.path.join(os.path.dirname(__file__), "..", "data", "resumes", "default.pdf"),
+)
 
 
 def _pick_resume_pdf(job: Job, db) -> str:

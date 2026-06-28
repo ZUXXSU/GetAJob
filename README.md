@@ -47,20 +47,23 @@ Open **http://localhost:8000**
 
 ### Personal Profile
 ```bash
-CANDIDATE_NAME=Hardik Kolge
-CANDIDATE_EMAIL=hardik@example.com
-CANDIDATE_PHONE=+91 ...
-CANDIDATE_LINKEDIN=linkedin.com/in/...
-CANDIDATE_GITHUB=github.com/...
-CANDIDATE_LOCATION=Thane, Maharashtra, India
-CANDIDATE_LOCATION_TARGETS=mumbai,thane,navi mumbai
+CANDIDATE_NAME=Your Full Name
+CANDIDATE_EMAIL=you@example.com
+CANDIDATE_PHONE=+91 9999999999
+CANDIDATE_LINKEDIN=linkedin.com/in/your-handle
+CANDIDATE_GITHUB=github.com/your-handle
+CANDIDATE_LOCATION=Your City, State, Country
+CANDIDATE_LOCATION_TARGETS=city1,city2,city3
 CANDIDATE_ACCEPT_REMOTE=true
 CANDIDATE_MIN_SALARY_INR=500000
 CANDIDATE_EXP_YEARS=1.5
-CANDIDATE_SKILLS=swift,kotlin,dart,flutter,react,node,...
-CANDIDATE_TARGET_ROLES=flutter developer,ios developer,...
-CANDIDATE_SEARCH_QUERIES=flutter developer,ios developer swift,...
+CANDIDATE_SKILLS=python,javascript,react,node,...
+CANDIDATE_TARGET_ROLES=software engineer,backend developer,...
+CANDIDATE_SEARCH_QUERIES=software engineer,full stack developer,...
+DEFAULT_RESUME_PDF=/absolute/path/to/your_resume.pdf
 ```
+
+Drop your resume PDF into `data/resumes/default.pdf` OR set `DEFAULT_RESUME_PDF` to any absolute path.
 
 ### Email (Gmail App Password required)
 ```bash
@@ -207,7 +210,7 @@ GetAJob/
   run.sh                — start server
   install_service.sh    — macOS LaunchAgent installer
   uninstall_service.sh  — remove LaunchAgent
-  HARDIK KOLGE.pdf      — default resume (fallback)
+  data/resumes/default.pdf — default resume (gitignored — supply your own)
   data/
     jobs.db             — SQLite DB
     resumes/            — uploaded resume PDFs

@@ -147,7 +147,8 @@ def _check_resume_pdf() -> dict:
             "resume_count": len(resumes),
             "pdf_count": pdf_count,
             "default_pdf_exists": os.path.exists(
-                os.path.join(os.path.dirname(__file__), "..", "HARDIK KOLGE.pdf")
+                os.getenv("DEFAULT_RESUME_PDF",
+                          os.path.join(os.path.dirname(__file__), "..", "data", "resumes", "default.pdf"))
             ),
         }
     finally:

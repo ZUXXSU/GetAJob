@@ -154,10 +154,10 @@ def generate_cover_letter(title: str, company: str, description: str) -> str:
     """Generate a tailored cover letter for the job."""
     desc_snippet = description[:1500] if description else ""
     prompt = f"""Write a professional, personalized cover letter (3 short paragraphs) for:
-Candidate: Hardik Kolge
-Phone: +91 93729 23253
-LinkedIn: linkedin.com/in/hardik-kolge
-GitHub: github.com/ZUXXSU
+Candidate: {PROFILE.get('name', '')}
+Phone: {PROFILE.get('phone', '')}
+LinkedIn: {PROFILE.get('linkedin', '')}
+GitHub: {PROFILE.get('github', '')}
 
 Role: {title} at {company}
 Candidate background: {PROFILE_SUMMARY}
