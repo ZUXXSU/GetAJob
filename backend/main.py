@@ -24,7 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+_FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+_FRONTEND = os.path.join(_FRONTEND_DIR, "index.html")
 
 
 @asynccontextmanager
@@ -54,6 +55,22 @@ def root():
     if os.path.exists(_FRONTEND):
         return FileResponse(_FRONTEND)
     return JSONResponse({"status": "running", "dashboard": "/api/jobs"})
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    p = os.path.join(_FRONTEND_DIR, "manifest.webmanifest")
+    if os.path.exists(p):
+        return FileResponse(p, media_type="application/manifest+json")
+    return JSONResponse({"error": "no manifest"}, status_code=404)
+
+
+@app.get("/sw.js")
+def service_worker():
+    p = os.path.join(_FRONTEND_DIR, "sw.js")
+    if os.path.exists(p):
+        return FileResponse(p, media_type="application/javascript")
+    return JSONResponse({"error": "no sw"}, status_code=404)
 
 
 if __name__ == "__main__":

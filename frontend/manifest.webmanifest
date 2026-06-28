@@ -1,0 +1,42 @@
+{
+  "name": "GetAJob Enterprise",
+  "short_name": "GetAJob",
+  "description": "Autonomous AI-powered job search platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today's Playbook",
+      "url": "/?tab=dashboard",
+      "description": "View today's job search tasks"
+    },
+    {
+      "name": "Jobs",
+      "url": "/?tab=jobs",
+      "description": "Browse matched jobs"
+    },
+    {
+      "name": "Coach",
+      "url": "/?tab=coach",
+      "description": "AI career coach"
+    }
+  ]
+}

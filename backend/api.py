@@ -644,6 +644,19 @@ def test_whatsapp():
     return {"ok": ok}
 
 
+# ── In-App Log Viewer ─────────────────────────────────────────────────────────
+@router.get("/logs/recent")
+def logs_recent(level: Optional[str] = None, search: Optional[str] = None, limit: int = 200):
+    from log_viewer import read_logs
+    return read_logs(level=level, search=search, limit=limit)
+
+
+@router.get("/logs/errors")
+def logs_errors(hours: int = 24):
+    from log_viewer import get_recent_errors
+    return get_recent_errors(hours)
+
+
 # ── System Health ─────────────────────────────────────────────────────────────
 @router.get("/health")
 def system_health():
