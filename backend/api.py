@@ -785,6 +785,25 @@ def accessible_jobs(
     return {"total": total, "jobs": open_jobs[skip:skip + limit]}
 
 
+# ── Cover Letter A/B Testing ──────────────────────────────────────────────────
+@router.get("/cover-letter-ab/stats")
+def cover_letter_ab_stats(db: Session = Depends(get_db)):
+    from cover_letter_ab import get_variant_stats, COVER_LETTER_VARIANTS
+    stats = get_variant_stats(db)
+    return {
+        "variants": stats,
+        "all_variants": [{"key": k, "name": v["name"], "instructions": v["instructions"]}
+                         for k, v in COVER_LETTER_VARIANTS.items()],
+    }
+
+
+# ── Response Time Analytics ───────────────────────────────────────────────────
+@router.get("/analytics/response-times")
+def response_time_analytics(db: Session = Depends(get_db)):
+    from response_analytics import compute_response_analytics
+    return compute_response_analytics(db)
+
+
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
     total = db.query(Job).count()

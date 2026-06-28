@@ -150,10 +150,29 @@ Respond ONLY with valid JSON (no markdown, no extra text):
     }
 
 
-def generate_cover_letter(title: str, company: str, description: str) -> str:
-    """Generate a tailored cover letter for the job."""
+def generate_cover_letter(title: str, company: str, description: str, variant: str = None) -> str:
+    """Generate a tailored cover letter. Variant = A/B style tag."""
     desc_snippet = description[:1500] if description else ""
-    prompt = f"""Write a professional, personalized cover letter (3 short paragraphs) for:
+
+    # Pick A/B variant if not specified
+    variant_block = ""
+    chosen_variant = variant
+    if not chosen_variant:
+        try:
+            from cover_letter_ab import pick_variant
+            from database import SessionLocal
+            db = SessionLocal()
+            chosen_variant = pick_variant(db)
+            db.close()
+        except Exception:
+            chosen_variant = "formal"
+    try:
+        from cover_letter_ab import get_variant_instructions
+        variant_block = f"\nStyle directive ({chosen_variant}): {get_variant_instructions(chosen_variant)}\n"
+    except Exception:
+        pass
+
+    prompt = f"""Write a personalized cover letter (3 short paragraphs) for:
 Candidate: {PROFILE.get('name', '')}
 Phone: {PROFILE.get('phone', '')}
 LinkedIn: {PROFILE.get('linkedin', '')}
@@ -162,16 +181,23 @@ GitHub: {PROFILE.get('github', '')}
 Role: {title} at {company}
 Candidate background: {PROFILE_SUMMARY}
 Job context: {desc_snippet}
-
+{variant_block}
 Rules:
 - Start with a strong opening (not "I am writing to apply")
 - Paragraph 2: 2-3 specific relevant achievements/skills
 - Paragraph 3: enthusiasm for this company specifically, call to action
-- Professional but not robotic
 - Max 250 words
 - Return ONLY the cover letter body (no "Subject:", no salutation)"""
     result = _run(prompt, timeout=60)
-    return result if result else ""
+    if not result:
+        return ""
+
+    # Tag with variant for A/B tracking
+    try:
+        from cover_letter_ab import tag_letter
+        return tag_letter(result, chosen_variant)
+    except Exception:
+        return result
 
 
 def tailor_resume(resume_text: str, title: str, company: str, description: str) -> str:

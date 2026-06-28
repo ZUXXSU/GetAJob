@@ -147,8 +147,14 @@ def _apply_to_job(job: Job, db, dry_run: bool) -> str:
             db.add(analysis)
 
     subject = f"Application for {job.title} — {PROFILE.get('name', '')}"
+    # Strip A/B variant tag before sending
+    try:
+        from cover_letter_ab import strip_tag
+        outgoing_cl = strip_tag(cover_letter)
+    except Exception:
+        outgoing_cl = cover_letter
     # Email body: cover letter + signature ONLY. No resume text. PDF attached separately.
-    body = _build_email_body(job, cover_letter)
+    body = _build_email_body(job, outgoing_cl)
 
     if not dry_run:
         if not _send_email(hr_email, subject, body, resume_pdf):
