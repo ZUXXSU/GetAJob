@@ -1,0 +1,33 @@
+# Secrets — NEVER commit
+.env
+.env.local
+
+# Runtime data
+data/jobs.db
+data/jobs.db.bak
+data/*.log
+data/linkedin_session/
+data/resumes/
+data/backups/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# OS
+Thumbs.db
+
+
+# Claude / local tooling
+.claude/

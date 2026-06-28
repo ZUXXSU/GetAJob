@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GetAJob Enterprise — Hardik Kolge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+    .score-ring { transition: all .2s; }
+    .kanban-col { min-height: 200px; }
+    .job-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    .job-card { transition: all .15s; }
+    .gemini-badge { background: linear-gradient(135deg,#4285f4,#0f9d58); }
+    textarea { font-family: 'Courier New', monospace; }
+    .ai-glow { box-shadow: 0 0 0 2px #4285f420; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+<!-- ── Top Nav ── -->
+<nav class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">G</div>
+    <div>
+      <span class="font-bold text-slate-900">GetAJob</span>
+      <span class="text-slate-400 text-xs ml-2">Enterprise · Hardik Kolge</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <span id="navStats" class="text-xs text-slate-400 mr-2"></span>
+    <button onclick="triggerScrape(this)" class="text-sm bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 border border-slate-200">Scrape</button>
+    <button onclick="triggerBatchAnalyze(this)" class="text-sm gemini-badge text-white px-3 py-1.5 rounded-lg hover:opacity-90">✨ Analyze All</button>
+    <button onclick="triggerAutoApply()" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">AI Auto-Apply</button>
+  </div>
+</nav>
+
+<!-- ── Tab Bar ── -->
+<div class="bg-white border-b border-slate-200 px-6 flex gap-6 flex-shrink-0">
+  <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn tab-active py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Dashboard</button>
+  <button onclick="showTab('jobs')" id="tab-jobs" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Jobs <span id="jobsBadge" class="ml-1 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full"></span></button>
+  <button onclick="showTab('pipeline')" id="tab-pipeline" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Pipeline</button>
+  <button onclick="showTab('resume')" id="tab-resume" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Resumes</button>
+  <button onclick="showTab('followups')" id="tab-followups" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Follow-ups <span id="followupBadge" class="ml-1 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full hidden"></span></button>
+  <button onclick="showTab('coach')" id="tab-coach" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Coach ✨</button>
+  <button onclick="showTab('analytics')" id="tab-analytics" class="tab-btn py-3 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Analytics</button>
+</div>
+
+<!-- ── Tab Content ── -->
+<div class="flex-1 overflow-hidden">
+
+<!-- Dashboard Tab -->
+<div id="tab-dashboard-content" class="h-full overflow-y-auto p-6">
+  <!-- Success Predictor — Hero Widget -->
+  <div id="successHero" class="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-6 mb-4 text-white shadow-lg">
+    <div class="flex items-start gap-6">
+      <div class="flex-shrink-0">
+        <div class="relative w-32 h-32">
+          <svg viewBox="0 0 100 100" class="w-32 h-32 transform -rotate-90">
+            <circle cx="50" cy="50" r="44" stroke="rgba(255,255,255,0.2)" stroke-width="8" fill="none"/>
+            <circle id="successRing" cx="50" cy="50" r="44" stroke="white" stroke-width="8" fill="none"
+              stroke-dasharray="276" stroke-dashoffset="276" stroke-linecap="round"
+              style="transition: stroke-dashoffset 1s ease-in-out;"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="successProb" class="text-3xl font-bold">—</span>
+            <span class="text-xs opacity-80">probability</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h2 class="font-bold text-xl mb-1">Job Search Success Predictor</h2>
+        <p id="successInterpretation" class="text-sm opacity-90 mb-3">Calculating your odds...</p>
+        <div id="successActions" class="space-y-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Playbook — Action Panel -->
+  <div id="playbookBox" class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-slate-800 flex items-center gap-2">📋 Today's Playbook</h3>
+      <span id="playbookSummary" class="text-xs text-slate-500"></span>
+    </div>
+    <p id="playbookMessage" class="text-sm text-slate-600 mb-3"></p>
+    <div id="playbookTasks" class="space-y-2"></div>
+  </div>
+
+  <div id="statsGrid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 mb-4"></div>
+  <!-- Weekly Goal Progress -->
+  <div id="goalBanner" class="bg-white rounded-xl border border-slate-200 p-4 mb-4 hidden">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm font-medium text-slate-700">Weekly Application Goal</span>
+          <span id="goalLabel" class="text-xs text-slate-500"></span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-2">
+          <div id="goalBar" class="h-2 rounded-full bg-blue-500 transition-all" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <a href="/api/export/applications.csv" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 border border-slate-200">⬇ Export CSV</a>
+        <button onclick="api('/api/weekly-report/send','POST').then(()=>toast('Weekly report sent!','success'))" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 border border-slate-200">📧 Weekly Report</button>
+      </div>
+    </div>
+    <p id="goalAction" class="text-xs text-slate-500 mt-2"></p>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div>
+      <h3 class="font-semibold text-slate-700 mb-3">🔥 Top Matches (80+)</h3>
+      <div id="topJobs" class="space-y-3"></div>
+    </div>
+    <div>
+      <h3 class="font-semibold text-slate-700 mb-3">🤖 AI-Analyzed Jobs</h3>
+      <div id="aiJobs" class="space-y-3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Jobs Tab -->
+<div id="tab-jobs-content" class="h-full overflow-y-auto p-6 hidden">
+  <!-- Filters -->
+  <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+    <div class="flex flex-wrap gap-3 items-center">
+      <select id="fStatus" onchange="loadJobs()" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700">
+        <option value="">All Status</option>
+        <option value="new">New</option>
+        <option value="saved">Saved</option>
+        <option value="applied">Applied</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <select id="fSource" onchange="loadJobs()" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700">
+        <option value="">All Sources</option>
+        <option value="adzuna">Adzuna</option>
+        <option value="jsearch">JSearch</option>
+        <option value="naukri">Naukri</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="remotive">Remotive</option>
+      </select>
+      <select id="fScore" onchange="loadJobs()" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700">
+        <option value="0">Any Score</option>
+        <option value="60">60+ Good</option>
+        <option value="80">80+ Excellent</option>
+      </select>
+      <select id="fSort" onchange="loadJobs()" class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700">
+        <option value="score">Sort: Score</option>
+        <option value="date">Sort: Newest</option>
+      </select>
+      <input id="fLocation" onchange="loadJobs()" placeholder="Location filter..." class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-36">
+      <span id="jobCount" class="text-xs text-slate-400 ml-auto"></span>
+    </div>
+  </div>
+  <div id="jobList" class="space-y-3"></div>
+  <div class="text-center mt-6">
+    <button id="moreBtn" onclick="loadMore()" class="hidden border border-slate-200 bg-white text-slate-600 px-6 py-2 rounded-lg text-sm hover:bg-slate-50">Load More</button>
+  </div>
+</div>
+
+<!-- Pipeline Tab -->
+<div id="tab-pipeline-content" class="h-full overflow-hidden p-6 hidden">
+  <div class="flex gap-4 h-full overflow-x-auto pb-4">
+    <div class="kanban-col flex-shrink-0 w-72">
+      <div class="bg-blue-50 rounded-xl p-3 h-full overflow-y-auto">
+        <h3 class="font-semibold text-blue-700 mb-3 flex items-center justify-between">Applied <span id="cnt-applied" class="text-xs bg-blue-100 px-2 py-0.5 rounded-full">0</span></h3>
+        <div id="col-applied" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="kanban-col flex-shrink-0 w-72">
+      <div class="bg-yellow-50 rounded-xl p-3 h-full overflow-y-auto">
+        <h3 class="font-semibold text-yellow-700 mb-3 flex items-center justify-between">Phone Screen <span id="cnt-phone_screen" class="text-xs bg-yellow-100 px-2 py-0.5 rounded-full">0</span></h3>
+        <div id="col-phone_screen" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="kanban-col flex-shrink-0 w-72">
+      <div class="bg-purple-50 rounded-xl p-3 h-full overflow-y-auto">
+        <h3 class="font-semibold text-purple-700 mb-3 flex items-center justify-between">Interview <span id="cnt-interview" class="text-xs bg-purple-100 px-2 py-0.5 rounded-full">0</span></h3>
+        <div id="col-interview" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="kanban-col flex-shrink-0 w-72">
+      <div class="bg-green-50 rounded-xl p-3 h-full overflow-y-auto">
+        <h3 class="font-semibold text-green-700 mb-3 flex items-center justify-between">Offer 🎉 <span id="cnt-offer" class="text-xs bg-green-100 px-2 py-0.5 rounded-full">0</span></h3>
+        <div id="col-offer" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="kanban-col flex-shrink-0 w-72">
+      <div class="bg-red-50 rounded-xl p-3 h-full overflow-y-auto">
+        <h3 class="font-semibold text-red-600 mb-3 flex items-center justify-between">Rejected <span id="cnt-rejected" class="text-xs bg-red-100 px-2 py-0.5 rounded-full">0</span></h3>
+        <div id="col-rejected" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Resume Tab -->
+<div id="tab-resume-content" class="h-full overflow-hidden p-6 hidden">
+  <div class="max-w-6xl mx-auto h-full flex flex-col gap-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between flex-shrink-0">
+      <div>
+        <h2 class="font-bold text-slate-800">Resume Manager</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Upload different resumes for different roles. Gemini picks the best one per job automatically.</p>
+      </div>
+      <button onclick="openAddResume()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-blue-700">+ Add Resume</button>
+    </div>
+
+    <!-- Resume Grid + Editor -->
+    <div class="flex gap-4 flex-1 overflow-hidden min-h-0">
+      <!-- Left: Resume Cards -->
+      <div class="w-72 flex-shrink-0 overflow-y-auto space-y-3">
+        <div id="resumeCards"></div>
+      </div>
+
+      <!-- Right: Editor -->
+      <div class="flex-1 overflow-hidden flex flex-col gap-3 min-w-0">
+        <div id="resumeEditor" class="hidden flex-1 flex flex-col gap-3 min-h-0">
+          <!-- Editor top bar -->
+          <div class="bg-white rounded-xl border border-slate-200 p-4 flex-shrink-0">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="text-xs font-medium text-slate-600">Resume Name</label>
+                <input id="rName" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Flutter Developer">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-600">Description</label>
+                <input id="rDesc" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Optimized for mobile roles">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="text-xs font-medium text-slate-600">Target Role Keywords <span class="text-slate-400">(comma-separated)</span></label>
+              <input id="rRoles" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="flutter, mobile, ios, dart">
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="saveCurrentResume()" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save</button>
+              <button onclick="improveCurrentResume()" class="text-sm gemini-badge text-white px-4 py-2 rounded-lg hover:opacity-90">✨ Gemini Improve</button>
+              <label class="text-sm bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 cursor-pointer border border-slate-200">
+                📎 Upload PDF
+                <input type="file" accept=".pdf" class="hidden" onchange="uploadPDF(this)">
+              </label>
+              <button id="rDefaultBtn" onclick="setDefault()" class="text-sm bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg hover:bg-amber-100">Set Default</button>
+              <button onclick="deleteCurrentResume()" class="text-sm bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 ml-auto">Delete</button>
+            </div>
+          </div>
+
+          <!-- Text editor + suggestions side by side -->
+          <div class="flex gap-3 flex-1 min-h-0">
+            <div class="flex-1 flex flex-col min-h-0">
+              <label class="text-xs font-medium text-slate-500 mb-1">Resume Text</label>
+              <textarea id="rContent" class="flex-1 border border-slate-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 min-h-0" placeholder="Paste your resume here (plain text or markdown)..."></textarea>
+            </div>
+            <div class="w-64 flex-shrink-0">
+              <label class="text-xs font-medium text-slate-500 mb-1 block">✨ AI Suggestions</label>
+              <div id="rSuggestions" class="h-full border border-slate-200 rounded-xl p-3 text-sm text-slate-400 overflow-y-auto bg-slate-50">
+                Click "Gemini Improve" to get suggestions.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="resumeEmptyState" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <p class="text-slate-400 mb-3">No resume selected</p>
+            <button onclick="openAddResume()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700">+ Add Your First Resume</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Resume Modal -->
+<div id="addResumeModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeAddResume()">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800">Add New Resume</h3>
+      <button onclick="closeAddResume()" class="text-slate-300 hover:text-slate-500 text-2xl leading-none">×</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-medium text-slate-600">Resume Name *</label>
+        <input id="newRName" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Flutter Developer, Full Stack, iOS">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Description</label>
+        <input id="newRDesc" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Emphasizes Flutter/Dart experience">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Target Roles <span class="text-slate-400">(comma-separated keywords)</span></label>
+        <input id="newRRoles" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="flutter, mobile, dart, ios, android">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">Resume Text</label>
+        <textarea id="newRContent" class="mt-1 w-full border border-slate-200 rounded-xl p-3 text-sm" rows="6" placeholder="Paste resume text here..."></textarea>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+        <input type="checkbox" id="newRDefault" class="rounded"> Set as default resume
+      </label>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button onclick="submitNewResume()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 flex-1">Create Resume</button>
+      <button onclick="closeAddResume()" class="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl text-sm hover:bg-slate-200">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Follow-ups Tab -->
+<div id="tab-followups-content" class="h-full overflow-y-auto p-6 hidden">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-slate-800">Follow-up Tracker</h2>
+      <div class="flex gap-2">
+        <button onclick="triggerFollowups(true)" class="text-sm bg-slate-100 text-slate-600 px-4 py-2 rounded-xl border hover:bg-slate-200">Dry Run</button>
+        <button onclick="triggerFollowups(false)" class="text-sm bg-orange-600 text-white px-4 py-2 rounded-xl hover:bg-orange-700">Send Follow-ups</button>
+      </div>
+    </div>
+    <div id="followupDue" class="space-y-3 mb-6"></div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">Follow-up Schedule</h3>
+      <div class="text-sm text-slate-600 space-y-2">
+        <p>📧 <strong>Follow-up #1</strong> — 7 days after application with no response</p>
+        <p>📧 <strong>Follow-up #2</strong> — 14 days after application with no response</p>
+        <p class="text-slate-400">Max 2 follow-ups per application. Stops when response received.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Coach Tab -->
+<div id="tab-coach-content" class="h-full overflow-y-auto p-6 hidden">
+  <div class="max-w-5xl mx-auto space-y-4">
+
+    <!-- Today's Top 3 -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">🎯 Today's Top 3 Recommendations</h3>
+        <button onclick="loadDailyRecs()" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200">Refresh</button>
+      </div>
+      <div id="dailyRecs" class="space-y-3"></div>
+    </div>
+
+    <!-- Skill Coach -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">📚 Skill Gap Analysis</h3>
+        <button onclick="loadSkillCoach()" class="text-xs gemini-badge text-white px-3 py-1.5 rounded-lg hover:opacity-90">✨ Refresh</button>
+      </div>
+      <div id="skillCoach" class="text-sm text-slate-500">Click Refresh to analyze your skill gaps from job market data.</div>
+    </div>
+
+    <!-- Mock Interview -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">🎤 Mock Interview Practice</h3>
+      <div class="flex gap-2 mb-3">
+        <input id="mockJobId" type="number" placeholder="Job ID (e.g. 21)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-40">
+        <button onclick="startMockInterview()" class="text-sm gemini-badge text-white px-4 py-2 rounded-lg hover:opacity-90">Start Mock Interview</button>
+      </div>
+      <div id="mockChat" class="hidden">
+        <div id="mockMessages" class="bg-slate-50 rounded-xl p-4 max-h-96 overflow-y-auto space-y-3 mb-3"></div>
+        <div class="flex gap-2">
+          <input id="mockAnswer" placeholder="Type your answer..." class="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1" onkeypress="if(event.key==='Enter')sendMockAnswer()">
+          <button onclick="sendMockAnswer()" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Send</button>
+          <button onclick="endMockInterview()" class="text-sm bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100">End & Get Feedback</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Salary Intelligence -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">💰 Salary Intelligence</h3>
+        <div class="flex gap-2">
+          <input id="salRole" placeholder="Role (e.g. flutter)" class="border border-slate-200 rounded-lg px-2 py-1 text-xs w-32">
+          <input id="salLoc" placeholder="Location" class="border border-slate-200 rounded-lg px-2 py-1 text-xs w-28" value="mumbai">
+          <button onclick="loadSalaryIntel()" class="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Analyze</button>
+        </div>
+      </div>
+      <div id="salaryIntel" class="text-sm text-slate-500">Click Analyze to see market salary data and negotiation advice.</div>
+    </div>
+
+    <!-- Application Heatmap -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">🔥 Application Activity Heatmap (60 days)</h3>
+      <div id="heatmapBox" class="text-sm text-slate-400">Loading...</div>
+    </div>
+
+    <!-- Network Outreach -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">🌐 Network Outreach Plan</h3>
+        <button onclick="loadOutreach()" class="text-xs gemini-badge text-white px-3 py-1.5 rounded-lg hover:opacity-90">✨ Generate</button>
+      </div>
+      <div id="outreachBox" class="text-sm text-slate-500">Click Generate for this week's networking actions.</div>
+    </div>
+
+    <!-- Re-apply Suggestions -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">🔁 Smart Re-Apply Suggestions</h3>
+        <button onclick="loadReapply()" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200">Check</button>
+      </div>
+      <div id="reapplyBox" class="text-sm text-slate-500">Click Check for re-apply candidates (60d no-response or 90d rejected).</div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="font-semibold text-slate-800">🏆 Achievements</h3>
+          <p id="achLevel" class="text-xs text-amber-700 mt-0.5"></p>
+        </div>
+        <p id="achCount" class="text-sm text-slate-500"></p>
+      </div>
+      <div id="achievements" class="grid grid-cols-3 sm:grid-cols-6 gap-3"></div>
+      <p id="achMilestone" class="text-xs text-blue-600 mt-3"></p>
+    </div>
+
+    <!-- AI Coach Chat -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">💬 Ask Your AI Career Coach</h3>
+      <p class="text-xs text-slate-500 mb-3">Ask anything about your job search: "should I take this offer?", "is X company good?", "how to negotiate?"</p>
+      <div id="coachChat" class="space-y-2 max-h-72 overflow-y-auto mb-3"></div>
+      <div class="flex gap-2">
+        <input id="coachInput" placeholder="Ask anything..." class="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1" onkeypress="if(event.key==='Enter')askCoach()">
+        <button onclick="askCoach()" class="text-sm gemini-badge text-white px-4 py-2 rounded-lg hover:opacity-90">✨ Ask</button>
+      </div>
+    </div>
+
+    <!-- Daily Coding Practice -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-800">💻 Daily Coding Practice</h3>
+        <div id="codingStreak" class="text-sm text-amber-700"></div>
+      </div>
+      <div id="codingProblem" class="text-sm text-slate-500">Loading today's problem...</div>
+    </div>
+
+    <!-- Company Watchlist -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">⭐ Company Watchlist</h3>
+      <div class="flex gap-2 mb-3">
+        <input id="watchCompany" placeholder="Company name" class="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1">
+        <input id="watchRole" placeholder="Role filter (optional)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-44">
+        <button onclick="addToWatchlist()" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ Watch</button>
+      </div>
+      <div id="watchlistBox" class="space-y-2"></div>
+    </div>
+
+    <!-- Outreach Templates -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">💬 Cold Outreach Templates</h3>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <select id="outTemplate" class="border border-slate-200 rounded-lg px-3 py-2 text-sm"></select>
+        <input id="outCompany" placeholder="Target company" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input id="outRole" placeholder="Target role" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input id="outPerson" placeholder="Recipient name (optional)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 mb-3">
+        <button onclick="generateOutreach(false)" class="text-sm bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200">Generate (fast)</button>
+        <button onclick="generateOutreach(true)" class="text-sm gemini-badge text-white px-4 py-2 rounded-lg hover:opacity-90">✨ Generate with Gemini</button>
+      </div>
+      <div id="outResult" class="hidden bg-slate-50 rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap"></div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">📅 Interview Calendar</h3>
+      <p class="text-sm text-slate-500 mb-3">Subscribe to this calendar feed in Google Calendar / Apple Calendar / Outlook to see all interviews and follow-up reminders.</p>
+      <div class="flex gap-2">
+        <a href="/api/calendar.ics" target="_blank" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">⬇ Download .ics</a>
+        <button onclick="navigator.clipboard.writeText(location.origin + '/api/calendar.ics');toast('Calendar URL copied — paste into your calendar app','success')" class="text-sm bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200">Copy Subscribe URL</button>
+      </div>
+    </div>
+
+    <!-- Reference Letter -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">📝 Reference Letter Request</h3>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <input id="refName" placeholder="Reference name" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input id="refRole" placeholder="Their role (e.g. Senior Manager)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input id="refCompany" placeholder="Company you both worked at" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input id="refTarget" placeholder="Target role (optional)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <button onclick="generateRefLetter()" class="text-sm gemini-badge text-white px-4 py-2 rounded-lg hover:opacity-90">✨ Generate Letter</button>
+      <div id="refLetterResult" class="hidden mt-3 bg-slate-50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Analytics Tab -->
+<div id="tab-analytics-content" class="h-full overflow-y-auto p-6 hidden">
+  <div class="max-w-5xl mx-auto">
+    <div id="analyticsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"></div>
+
+    <!-- Funnel -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+      <h3 class="font-semibold text-slate-800 mb-4">🎯 Job Search Funnel</h3>
+      <div id="funnelChart" class="space-y-2"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-slate-800 mb-4">Jobs by Source</h3>
+        <div id="sourceChart" class="space-y-3"></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-slate-800 mb-4">Match Score Distribution</h3>
+        <div id="scoreChart" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- Telegram Setup -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+      <h3 class="font-semibold text-slate-800 mb-3">📱 Telegram Notifications</h3>
+      <div id="telegramStatus" class="text-sm"></div>
+      <div class="mt-3 flex gap-2">
+        <button onclick="testTelegram()" class="text-sm bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100">Test Notification</button>
+        <button onclick="setupTelegram()" class="text-sm bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200">Setup Guide</button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-800 mb-3">Scrape Logs</h3>
+      <div id="logsTable" class="text-xs space-y-1 max-h-64 overflow-y-auto"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end tab content -->
+
+<!-- ── Job Detail Modal ── -->
+<div id="modal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)closeModal()">
+  <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div class="flex items-start justify-between p-6 border-b border-slate-100">
+      <div class="flex-1 min-w-0 mr-4">
+        <h2 id="mTitle" class="text-lg font-bold text-slate-900"></h2>
+        <p id="mMeta" class="text-sm text-slate-500 mt-1"></p>
+        <div id="mAiBadge" class="mt-2"></div>
+      </div>
+      <button onclick="closeModal()" class="text-slate-300 hover:text-slate-500 text-2xl flex-shrink-0 leading-none">×</button>
+    </div>
+    <!-- Modal Tabs -->
+    <div class="flex gap-4 px-6 border-b border-slate-100 bg-slate-50">
+      <button onclick="modalTab('overview')" id="mtab-overview" class="mtab py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600">Overview</button>
+      <button onclick="modalTab('ai')" id="mtab-ai" class="mtab py-2.5 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">AI Analysis</button>
+      <button onclick="modalTab('letter')" id="mtab-letter" class="mtab py-2.5 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Cover Letter</button>
+      <button onclick="modalTab('resume')" id="mtab-resume" class="mtab py-2.5 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Tailored Resume</button>
+      <button onclick="modalTab('interview')" id="mtab-interview" class="mtab py-2.5 text-sm font-medium text-slate-500 hover:text-blue-600 border-b-2 border-transparent">Interview Prep</button>
+    </div>
+    <div id="mBody" class="flex-1 overflow-y-auto p-6"></div>
+    <div id="mActions" class="p-4 border-t border-slate-100 flex flex-wrap gap-2 bg-slate-50 rounded-b-2xl"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let jobsOffset = 0;
+const LIMIT = 30;
+let jobsTotal = 0;
+let currentJob = null;
+let currentModalTab = 'overview';
+
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('[id^="tab-"][id$="-content"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('tab-active', 'text-blue-600');
+    el.classList.add('text-slate-500');
+  });
+  document.getElementById(`tab-${name}-content`).classList.remove('hidden');
+  const btn = document.getElementById(`tab-${name}`);
+  btn.classList.add('tab-active', 'text-blue-600');
+  btn.classList.remove('text-slate-500');
+  if (name === 'jobs') loadJobs();
+  if (name === 'pipeline') loadPipeline();
+  if (name === 'resume') loadResume();
+  if (name === 'followups') loadFollowups();
+  if (name === 'coach') loadCoach();
+  if (name === 'analytics') loadAnalytics();
+}
+
+// ── API util ───────────────────────────────────────────────────────────────────
+async function api(url, method = 'GET', body = null) {
+  const opts = { method, headers: {} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(url, opts);
+  if (!r.ok) { const t = await r.text(); throw new Error(`${method} ${url} → ${r.status}: ${t}`); }
+  return r.json();
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  const colors = { info: 'bg-slate-800', success: 'bg-green-600', error: 'bg-red-600' };
+  el.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-4 py-2.5 rounded-xl text-sm shadow-xl z-[100] transition-all`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const s = await api('/api/stats');
+  document.getElementById('navStats').textContent = `${s.total} jobs · ${s.high_match} high match · ${s.applied} applied`;
+  document.getElementById('jobsBadge').textContent = s.new;
+  document.getElementById('statsGrid').innerHTML = [
+    statCard(s.total, 'Total Jobs', '#1d4ed8'),
+    statCard(s.new, 'New', '#2563eb'),
+    statCard(s.high_match, 'High Match', '#16a34a'),
+    statCard(s.ai_analyzed, 'AI Analyzed', '#7c3aed'),
+    statCard(s.applied, 'Applied', '#0891b2'),
+    statCard(s.auto_applied, 'Auto-Applied', '#ea580c'),
+  ].join('');
+
+  // Today's Playbook
+  try {
+    const pb = await api('/api/playbook/today');
+    document.getElementById('playbookSummary').textContent =
+      `${pb.task_count} tasks · ${pb.total_time_min} min · ${pb.current_probability}% → ${pb.potential_after_completion}% if done`;
+    document.getElementById('playbookMessage').textContent = pb.motivational_message;
+    document.getElementById('playbookTasks').innerHTML = (pb.tasks || []).map((t, i) => `
+      <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+        <span class="text-2xl flex-shrink-0">${t.icon}</span>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-slate-800 text-sm">${t.task}</p>
+          <p class="text-xs text-slate-500 mt-0.5">${t.why}</p>
+          <p class="text-xs text-blue-600 mt-1">${t.time} · ${t.duration_min} min</p>
+        </div>
+        ${t.action_url.startsWith('http')
+          ? `<a href="${t.action_url}" target="_blank" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex-shrink-0">Go ↗</a>`
+          : `<button onclick="showTab('${t.action_url.includes('jobs') ? 'jobs' : t.action_url.includes('coach') ? 'coach' : t.action_url.includes('followups') ? 'followups' : 'dashboard'}')" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex-shrink-0">Go</button>`}
+      </div>`).join('') || '<p class="text-slate-400 text-sm">No tasks today — you\'re ahead of the curve!</p>';
+  } catch(e) { console.warn(e); }
+
+  // Success Predictor — Hero
+  try {
+    const sp = await api('/api/success-predictor?target_days=90');
+    const ring = document.getElementById('successRing');
+    const circumference = 276;
+    const offset = circumference - (sp.probability_pct / 100 * circumference);
+    ring.style.strokeDashoffset = offset;
+    document.getElementById('successProb').textContent = sp.probability_pct + '%';
+    document.getElementById('successInterpretation').textContent = sp.interpretation;
+    document.getElementById('successActions').innerHTML = (sp.top_actions || []).slice(0, 3).map((a, i) => `
+      <div class="flex items-start gap-2 text-sm">
+        <span class="font-bold opacity-80">${i+1}.</span>
+        <div>
+          <span class="font-medium">${a.title}</span>
+          <span class="opacity-75"> — ${a.how}</span>
+        </div>
+      </div>`).join('');
+  } catch(e) { console.warn('Success predictor failed', e); }
+
+  // Goals
+  try {
+    const g = await api('/api/goals');
+    document.getElementById('goalBanner').classList.remove('hidden');
+    document.getElementById('goalLabel').textContent = `${g.applied_this_week} / ${g.weekly_goal}`;
+    document.getElementById('goalBar').style.width = g.goal_progress_pct + '%';
+    document.getElementById('goalBar').className = `h-2 rounded-full transition-all ${g.goal_met ? 'bg-green-500' : 'bg-blue-500'}`;
+    document.getElementById('goalAction').textContent = g.suggested_action;
+  } catch(e) {}
+
+  // Top matches
+  const topData = await api('/api/jobs?min_score=80&status=new&limit=5');
+  document.getElementById('topJobs').innerHTML = topData.jobs.map(j => miniJobCard(j)).join('') || '<p class="text-slate-400 text-sm">None yet. Click Scrape.</p>';
+
+  // AI analyzed
+  const aiData = await api('/api/jobs?has_ai=true&limit=5');
+  document.getElementById('aiJobs').innerHTML = aiData.jobs.map(j => miniJobCard(j, true)).join('') || '<p class="text-slate-400 text-sm">None analyzed yet.</p>';
+}
+
+function statCard(n, label, color) {
+  return `<div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+    <div class="text-2xl font-bold" style="color:${color}">${n}</div>
+    <div class="text-xs text-slate-400 mt-1">${label}</div>
+  </div>`;
+}
+
+function miniJobCard(j, showAI = false) {
+  const sc = scoreColor(j.match_score);
+  const aiScore = j.ai?.ai_score;
+  return `<div class="bg-white rounded-xl border border-slate-100 p-3 cursor-pointer hover:border-blue-200 job-card" onclick="openJob(${j.id})">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-full ${sc} flex items-center justify-center text-white text-xs font-bold flex-shrink-0">${j.match_score}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-slate-900 text-sm truncate">${j.title}</p>
+        <p class="text-xs text-slate-500 truncate">${j.company} · ${j.location}</p>
+        ${showAI && aiScore ? `<span class="text-xs gemini-badge text-white px-2 py-0.5 rounded-full mt-1 inline-block">AI ${aiScore}</span>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Jobs tab ───────────────────────────────────────────────────────────────────
+async function loadJobs(reset = true) {
+  if (reset) { jobsOffset = 0; document.getElementById('jobList').innerHTML = ''; }
+  const p = new URLSearchParams({
+    skip: jobsOffset, limit: LIMIT,
+    min_score: document.getElementById('fScore').value || '0',
+    sort: document.getElementById('fSort').value || 'score',
+  });
+  const st = document.getElementById('fStatus').value;
+  const src = document.getElementById('fSource').value;
+  const loc = document.getElementById('fLocation').value;
+  if (st) p.set('status', st);
+  if (src) p.set('source', src);
+  if (loc) p.set('location_filter', loc);
+  const data = await api('/api/jobs?' + p);
+  jobsTotal = data.total;
+  document.getElementById('jobCount').textContent = `${jobsTotal} jobs`;
+  renderJobs(data.jobs);
+  jobsOffset += data.jobs.length;
+  document.getElementById('moreBtn').classList.toggle('hidden', jobsOffset >= jobsTotal);
+}
+
+function loadMore() { loadJobs(false); }
+
+function renderJobs(jobs) {
+  const list = document.getElementById('jobList');
+  if (!jobs.length && jobsOffset === 0) {
+    list.innerHTML = '<div class="text-center py-16 text-slate-400">No jobs. Click Scrape to fetch.</div>';
+    return;
+  }
+  const STATUS_PILL = {
+    new: 'bg-blue-50 text-blue-700', saved: 'bg-amber-50 text-amber-700',
+    applied: 'bg-teal-50 text-teal-700', rejected: 'bg-red-50 text-red-600',
+  };
+  jobs.forEach(j => {
+    const sc = scoreColor(j.match_score);
+    const pill = STATUS_PILL[j.status] || 'bg-slate-50 text-slate-600';
+    const aiScore = j.ai?.ai_score;
+    const aiRec = j.ai?.apply_recommended;
+    const el = document.createElement('div');
+    el.id = `job-${j.id}`;
+    el.className = 'bg-white rounded-xl border border-slate-100 p-4 flex gap-4 job-card';
+    el.innerHTML = `
+      <div class="flex-shrink-0 w-12 h-12 rounded-full ${sc} flex items-center justify-center text-white font-bold text-sm">${j.match_score}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600" onclick="openJob(${j.id})">${j.title}</h3>
+            <p class="text-sm text-slate-500 truncate">${j.company} · ${j.location}</p>
+            ${j.salary_text ? `<p class="text-sm text-green-600 font-medium">${j.salary_text}</p>` : ''}
+          </div>
+          <div class="flex flex-col items-end gap-1 flex-shrink-0">
+            <span class="text-xs px-2 py-0.5 rounded-full ${pill}">${j.status}</span>
+            <span class="text-xs text-slate-300">${j.source}</span>
+            ${aiScore ? `<span class="text-xs gemini-badge text-white px-2 py-0.5 rounded-full">AI ${aiScore}${aiRec ? ' ✓' : ''}</span>` : ''}
+          </div>
+        </div>
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <a href="${j.url}" target="_blank" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">Apply ↗</a>
+          <button onclick="analyzeJob(${j.id}, this)" class="text-xs gemini-badge text-white px-3 py-1.5 rounded-lg hover:opacity-90">✨ AI</button>
+          <button onclick="setStatus(${j.id},'saved')"   class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">Save</button>
+          <button onclick="setStatus(${j.id},'applied')" class="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-100">Applied</button>
+          <button onclick="setStatus(${j.id},'rejected')" class="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">Reject</button>
+        </div>
+      </div>`;
+    document.getElementById('jobList').appendChild(el);
+  });
+}
+
+async function setStatus(id, status) {
+  await api(`/api/jobs/${id}/status`, 'PUT', { status });
+  if (status === 'applied') { await api('/api/applications', 'POST', null).then(() => {}).catch(() => {}); }
+  loadJobs(true);
+  loadDashboard();
+}
+
+async function analyzeJob(id, btn) {
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try {
+    const r = await api(`/api/jobs/${id}/analyze`, 'POST');
+    if (r.cached) toast('AI analysis ready!', 'success');
+    else toast('Analysis started. Refresh in 30s.', 'info');
+  } catch(e) { toast('Analysis failed', 'error'); }
+  btn.textContent = '✨ AI';
+  btn.disabled = false;
+}
+
+// ── Job Detail Modal ───────────────────────────────────────────────────────────
+async function openJob(id) {
+  const j = await api(`/api/jobs/${id}`);
+  currentJob = j;
+  currentModalTab = 'overview';
+  document.getElementById('mTitle').textContent = j.title;
+  document.getElementById('mMeta').textContent = `${j.company} · ${j.location} · ${j.source} · Score: ${j.match_score}`;
+
+  const ai = j.ai;
+  if (ai) {
+    document.getElementById('mAiBadge').innerHTML = `
+      <span class="gemini-badge text-white text-xs px-2 py-1 rounded-full">AI Score: ${ai.ai_score} ${ai.apply_recommended ? '· Recommended ✓' : '· Not recommended'}</span>
+      ${ai.one_line_summary ? `<span class="text-xs text-slate-500 ml-2">${ai.one_line_summary}</span>` : ''}`;
+  } else {
+    document.getElementById('mAiBadge').innerHTML = '';
+  }
+
+  renderModalTab('overview');
+  renderModalActions();
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderModalTab(tab) {
+  currentModalTab = tab;
+  document.querySelectorAll('.mtab').forEach(b => {
+    b.classList.remove('text-blue-600', 'border-blue-600');
+    b.classList.add('text-slate-500', 'border-transparent');
+  });
+  const active = document.getElementById(`mtab-${tab}`);
+  active.classList.add('text-blue-600', 'border-blue-600');
+  active.classList.remove('text-slate-500', 'border-transparent');
+
+  const j = currentJob;
+  const ai = j?.ai;
+  const body = document.getElementById('mBody');
+
+  if (tab === 'overview') {
+    body.innerHTML = `
+      ${j.salary_text ? `<p class="text-green-600 font-semibold mb-3">${j.salary_text}</p>` : ''}
+      <div class="text-sm text-slate-600 bg-slate-50 rounded-xl p-4 max-h-56 overflow-y-auto mb-4 leading-relaxed whitespace-pre-wrap">${j.description || 'No description available.'}</div>
+      ${j.application ? `
+        <div class="border border-blue-100 bg-blue-50 rounded-xl p-3 mb-4">
+          <p class="text-sm font-medium text-blue-800">Application Stage: <strong>${j.application.stage}</strong></p>
+          ${j.application.hr_email ? `<p class="text-xs text-blue-600 mt-1">Sent to: ${j.application.hr_email}</p>` : ''}
+          ${j.application.next_action ? `<p class="text-xs text-blue-600 mt-1">Next: ${j.application.next_action}</p>` : ''}
+        </div>` : ''}
+      <div>
+        <label class="text-sm font-medium text-slate-700">Private Notes</label>
+        <textarea id="jNotes" class="mt-1 w-full border border-slate-200 rounded-xl p-3 text-sm" rows="3" placeholder="Add notes...">${j.notes || ''}</textarea>
+        <button onclick="saveNotes(${j.id})" class="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200">Save Notes</button>
+      </div>`;
+  }
+
+  if (tab === 'ai') {
+    if (!ai) {
+      body.innerHTML = `<div class="text-center py-8">
+        <p class="text-slate-500 mb-4">No AI analysis yet.</p>
+        <button onclick="analyzeJob(${j.id},{textContent:'',disabled:false}).then(()=>setTimeout(()=>openJob(${j.id}),2000))"
+          class="gemini-badge text-white px-5 py-2.5 rounded-xl hover:opacity-90">✨ Run Gemini Analysis</button>
+      </div>`;
+    } else {
+      const tags = (arr, color) => (arr||[]).map(x=>`<span class="text-xs px-2 py-1 rounded-full ${color} mr-1 mb-1 inline-block">${x}</span>`).join('');
+      body.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          ${scoreBig(ai.ai_score, 'AI Match')}
+          ${scoreBig(j.match_score, 'Rule Score')}
+          <div class="bg-slate-50 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold ${ai.apply_recommended ? 'text-green-600' : 'text-red-500'}">${ai.apply_recommended ? 'YES' : 'NO'}</div>
+            <div class="text-xs text-slate-400 mt-1">Apply?</div>
+          </div>
+        </div>
+        ${ai.suggested_salary ? `<div class="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
+          <p class="text-sm font-medium text-green-700">💰 Negotiation target: ${ai.suggested_salary}</p></div>` : ''}
+        <div class="mb-4">
+          <p class="text-xs font-semibold text-green-700 mb-2">MATCH REASONS</p>
+          <div>${tags(ai.match_reasons, 'bg-green-50 text-green-700 border border-green-100')}</div>
+        </div>
+        ${ai.red_flags?.length ? `<div class="mb-4">
+          <p class="text-xs font-semibold text-red-600 mb-2">RED FLAGS</p>
+          <div>${tags(ai.red_flags, 'bg-red-50 text-red-600 border border-red-100')}</div>
+        </div>` : ''}
+        ${ai.skill_gaps?.length ? `<div>
+          <p class="text-xs font-semibold text-amber-700 mb-2">SKILL GAPS</p>
+          <div>${tags(ai.skill_gaps, 'bg-amber-50 text-amber-700 border border-amber-100')}</div>
+        </div>` : ''}`;
+    }
+  }
+
+  if (tab === 'letter') {
+    const cl = ai?.cover_letter;
+    body.innerHTML = `
+      ${cl ? `<div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-4">${cl}</div>
+        <button onclick="copyText(\`${cl.replace(/`/g,'\\`')}\`)" class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200">Copy</button>`
+      : `<div class="text-center py-8">
+        <p class="text-slate-500 mb-4">No cover letter generated yet.</p>
+        <button onclick="genCoverLetter(${j.id})" class="gemini-badge text-white px-5 py-2.5 rounded-xl hover:opacity-90">✨ Generate with Gemini</button>
+      </div>`}`;
+  }
+
+  if (tab === 'resume') {
+    const tr = ai?.tailored_resume;
+    body.innerHTML = `
+      ${tr ? `<div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto mb-4">${tr}</div>
+        <button onclick="copyText(\`${tr.replace(/`/g,'\\`')}\`)" class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200">Copy Tailored Resume</button>`
+      : `<div class="text-center py-8">
+        <p class="text-slate-500 mb-4">No tailored resume yet.</p>
+        <button onclick="genTailoredResume(${j.id})" class="gemini-badge text-white px-5 py-2.5 rounded-xl hover:opacity-90">✨ Tailor Resume with Gemini</button>
+      </div>`}`;
+  }
+
+  if (tab === 'interview') {
+    body.innerHTML = `
+      <div class="text-center py-8">
+        <p class="text-slate-500 mb-4">Generate interview prep: questions & answers, company research, salary tips.</p>
+        <button onclick="loadInterviewPrep(${j.id})" class="gemini-badge text-white px-5 py-2.5 rounded-xl hover:opacity-90">✨ Generate Interview Prep</button>
+      </div>`;
+  }
+}
+
+function modalTab(tab) { renderModalTab(tab); }
+
+function renderModalActions() {
+  const j = currentJob;
+  document.getElementById('mActions').innerHTML = `
+    <a href="${j.url}" target="_blank" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-blue-700">Apply ↗</a>
+    <button onclick="genCoverLetter(${j.id})" class="gemini-badge text-white px-4 py-2 rounded-xl text-sm hover:opacity-90">✨ Cover Letter</button>
+    <button onclick="genTailoredResume(${j.id})" class="gemini-badge text-white px-4 py-2 rounded-xl text-sm hover:opacity-90">✨ Tailor Resume</button>
+    <button onclick="runAtsCheck(${j.id})" class="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-xl text-sm hover:bg-amber-100">🎯 ATS Check</button>
+    <button onclick="checkVisa(${j.id})" class="bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm hover:bg-slate-100">🛂 Visa</button>
+    <button onclick="getAutofill(${j.id})" class="bg-purple-50 text-purple-700 border border-purple-200 px-4 py-2 rounded-xl text-sm hover:bg-purple-100">📋 Autofill</button>
+    <button onclick="autoApplySingle(${j.id})" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-teal-700">🚀 Auto-Apply</button>
+    <button onclick="modalTab('interview');loadInterviewPrep(${j.id})" class="bg-purple-50 text-purple-700 border border-purple-200 px-4 py-2 rounded-xl text-sm hover:bg-purple-100">🎯 Interview Prep</button>
+    <button onclick="setStatus(${j.id},'rejected');closeModal()" class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl text-sm hover:bg-red-100">Reject</button>`;
+}
+
+async function genCoverLetter(id) {
+  toast('Generating cover letter with Gemini...', 'info');
+  try {
+    const r = await api(`/api/jobs/${id}/cover-letter`, 'POST');
+    currentJob.ai = currentJob.ai || {};
+    currentJob.ai.cover_letter = r.cover_letter;
+    renderModalTab('letter');
+    toast('Cover letter ready!', 'success');
+  } catch(e) { toast('Gemini error: ' + e.message, 'error'); }
+}
+
+async function checkVisa(id) {
+  try {
+    const r = await api(`/api/jobs/${id}/visa-check`);
+    const emoji = r.accessibility === 'open' ? '✅' : r.accessibility === 'blocked' ? '🚫' : '❓';
+    alert(`${emoji} Visa Status: ${r.accessibility.toUpperCase()}\n\nReason: ${r.reason}\n\nIndia-based: ${r.is_india_location}\nRemote: ${r.is_remote}\nSponsorship offered: ${r.sponsorship_offered}`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function getAutofill(id) {
+  try {
+    const r = await api(`/api/autofill/pack?job_id=${id}`);
+    const text = Object.entries(r).map(([k, v]) => `${k}: ${v}`).join('\n');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+      toast('Autofill JSON copied to clipboard!', 'success');
+    }
+    const w = window.open('', '_blank', 'width=600,height=700');
+    w.document.write(`<pre style="font-family:monospace;padding:20px;font-size:13px;white-space:pre-wrap;">${text}</pre>`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function runAtsCheck(id) {
+  toast('Running ATS keyword analysis...', 'info');
+  try {
+    const r = await api(`/api/jobs/${id}/ats-check`, 'POST');
+    const a = r.ats;
+    const scoreColor = a.ats_score >= 80 ? 'text-green-600' : a.ats_score >= 60 ? 'text-amber-600' : 'text-red-500';
+    const msg = `ATS Score: ${a.ats_score}%\n\nPresent: ${(a.present_keywords||[]).join(', ')}\n\nMissing: ${(a.missing_keywords||[]).join(', ')}\n\nAdvice: ${a.gemini_advice || a.recommendation}`;
+    alert(msg);
+  } catch(e) { toast('ATS check failed: ' + e.message, 'error'); }
+}
+
+async function loadInterviewPrep(id) {
+  const body = document.getElementById('mBody');
+  body.innerHTML = '<p class="text-slate-400 animate-pulse text-center py-8">Gemini generating interview prep... (60s)</p>';
+  try {
+    const r = await api(`/api/jobs/${id}/interview-prep`, 'POST');
+    if (r.cached && r.prep) {
+      const p = r.prep;
+      body.innerHTML = `
+        <div class="space-y-4">
+          <div class="bg-blue-50 rounded-xl p-4">
+            <h4 class="font-semibold text-blue-800 mb-2">📋 Questions & Answers</h4>
+            <div class="text-sm text-slate-700 whitespace-pre-wrap max-h-64 overflow-y-auto">${p.questions_and_answers || 'Generating...'}</div>
+          </div>
+          <div class="bg-green-50 rounded-xl p-4">
+            <h4 class="font-semibold text-green-800 mb-2">🏢 Company Research</h4>
+            <div class="text-sm text-slate-700 whitespace-pre-wrap">${p.company_research || ''}</div>
+          </div>
+          <div class="bg-amber-50 rounded-xl p-4">
+            <h4 class="font-semibold text-amber-800 mb-2">💰 Salary Negotiation</h4>
+            <div class="text-sm text-slate-700 whitespace-pre-wrap">${p.salary_negotiation || ''}</div>
+          </div>
+        </div>`;
+    } else {
+      body.innerHTML = `<div class="text-center py-8 text-slate-500">
+        ${r.message || 'Generating...'}<br><br>
+        <button onclick="loadInterviewPrep(${id})" class="text-sm bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200">Refresh</button>
+      </div>`;
+    }
+  } catch(e) {
+    body.innerHTML = `<p class="text-red-500 text-sm p-4">${e.message}</p>`;
+  }
+}
+
+async function genTailoredResume(id) {
+  toast('Tailoring resume with Gemini...', 'info');
+  try {
+    const r = await api(`/api/jobs/${id}/tailor-resume`, 'POST');
+    currentJob.ai = currentJob.ai || {};
+    currentJob.ai.tailored_resume = r.tailored_resume;
+    renderModalTab('resume');
+    toast('Tailored resume ready!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function autoApplySingle(id) {
+  if (!confirm('Send auto-apply email for this job? (dry_run=false means real email)')) return;
+  toast('Applying...', 'info');
+  try {
+    const r = await api(`/api/jobs/${id}/auto-apply?dry_run=false`, 'POST');
+    toast(`Result: ${r.result}`, r.result === 'sent' ? 'success' : 'info');
+    closeModal();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function saveNotes(id) {
+  const notes = document.getElementById('jNotes')?.value || '';
+  await api(`/api/jobs/${id}/notes`, 'PUT', { notes });
+  toast('Notes saved', 'success');
+}
+
+function closeModal() { document.getElementById('modal').classList.add('hidden'); currentJob = null; }
+
+function copyText(text) { navigator.clipboard.writeText(text); toast('Copied!', 'success'); }
+
+function scoreBig(score, label) {
+  const c = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-500' : 'text-slate-400';
+  return `<div class="bg-slate-50 rounded-xl p-3 text-center">
+    <div class="text-2xl font-bold ${c}">${score ?? '—'}</div>
+    <div class="text-xs text-slate-400 mt-1">${label}</div>
+  </div>`;
+}
+
+function scoreColor(score) {
+  if (score >= 80) return 'bg-green-500';
+  if (score >= 60) return 'bg-amber-500';
+  return 'bg-slate-400';
+}
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+const STAGES = ['applied', 'phone_screen', 'interview', 'offer', 'rejected'];
+
+async function loadPipeline() {
+  const apps = await api('/api/applications');
+  const grouped = {};
+  STAGES.forEach(s => { grouped[s] = []; });
+  apps.forEach(a => { if (grouped[a.stage]) grouped[a.stage].push(a); });
+
+  STAGES.forEach(stage => {
+    document.getElementById(`cnt-${stage}`).textContent = grouped[stage].length;
+    document.getElementById(`col-${stage}`).innerHTML = grouped[stage].map(a => pipelineCard(a, stage)).join('')
+      || '<p class="text-xs text-slate-400 text-center py-4">Empty</p>';
+  });
+}
+
+function pipelineCard(a, stage) {
+  const j = a.job;
+  const NEXT = { applied: 'phone_screen', phone_screen: 'interview', interview: 'offer' };
+  const nextStage = NEXT[stage];
+  return `<div class="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
+    <p class="font-medium text-slate-800 text-sm truncate">${j?.title || 'Unknown'}</p>
+    <p class="text-xs text-slate-500 truncate">${j?.company || ''}</p>
+    ${a.hr_email ? `<p class="text-xs text-slate-400 mt-1">📧 ${a.hr_email}</p>` : ''}
+    ${a.next_action ? `<p class="text-xs text-blue-600 mt-1">→ ${a.next_action}</p>` : ''}
+    <div class="flex gap-1 mt-2 flex-wrap">
+      ${nextStage ? `<button onclick="moveStage(${a.id},'${nextStage}')" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-100">→ ${nextStage.replace('_', ' ')}</button>` : ''}
+      ${stage !== 'rejected' ? `<button onclick="moveStage(${a.id},'rejected')" class="text-xs bg-red-50 text-red-500 px-2 py-1 rounded-lg hover:bg-red-100">✗</button>` : ''}
+      ${j ? `<button onclick="openJob(${j.id})" class="text-xs bg-slate-50 text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100">View</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function moveStage(appId, stage) {
+  await api(`/api/applications/${appId}`, 'PUT', { stage });
+  loadPipeline();
+  loadDashboard();
+}
+
+// ── Multi-Resume Tab ────────────────────────────────────────────────────────────
+let currentResumeId = null;
+
+async function loadResume() {
+  await loadResumeCards();
+}
+
+async function loadResumeCards() {
+  const resumes = await api('/api/resumes');
+  const container = document.getElementById('resumeCards');
+  if (!resumes.length) {
+    container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No resumes yet.</p>';
+    showResumeEditor(false);
+    return;
+  }
+  container.innerHTML = resumes.map(r => `
+    <div onclick="selectResume(${r.id})" id="rcard-${r.id}"
+      class="bg-white rounded-xl border p-3 cursor-pointer hover:border-blue-300 transition-all ${r.id === currentResumeId ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-200'}">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="font-semibold text-slate-800 text-sm truncate">${r.name}</p>
+          ${r.description ? `<p class="text-xs text-slate-500 truncate">${r.description}</p>` : ''}
+        </div>
+        <div class="flex flex-col items-end gap-1 flex-shrink-0">
+          ${r.is_default ? '<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Default</span>' : ''}
+          ${r.has_pdf ? '<span class="text-xs text-green-600">📎 PDF</span>' : ''}
+        </div>
+      </div>
+      ${r.target_roles?.length ? `<div class="mt-2 flex flex-wrap gap-1">
+        ${r.target_roles.map(role => `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">${role}</span>`).join('')}
+      </div>` : ''}
+      <p class="text-xs text-slate-400 mt-2 truncate">${r.content_preview}</p>
+    </div>`).join('');
+
+  if (currentResumeId) {
+    const still = resumes.find(r => r.id === currentResumeId);
+    if (still) selectResume(currentResumeId);
+  }
+}
+
+async function selectResume(id) {
+  currentResumeId = id;
+  const r = await api(`/api/resumes/${id}`);
+  document.getElementById('rName').value = r.name || '';
+  document.getElementById('rDesc').value = r.description || '';
+  document.getElementById('rRoles').value = (r.target_roles || []).join(', ');
+  document.getElementById('rContent').value = r.content || '';
+  document.getElementById('rSuggestions').innerHTML = '<p class="text-slate-400">Click "Gemini Improve" to get suggestions.</p>';
+  document.getElementById('rDefaultBtn').textContent = r.is_default ? '✓ Default' : 'Set Default';
+  showResumeEditor(true);
+  // Update card highlights
+  document.querySelectorAll('[id^="rcard-"]').forEach(el => {
+    el.classList.toggle('border-blue-400', el.id === `rcard-${id}`);
+    el.classList.toggle('ring-1', el.id === `rcard-${id}`);
+    el.classList.toggle('ring-blue-200', el.id === `rcard-${id}`);
+    el.classList.toggle('border-slate-200', el.id !== `rcard-${id}`);
+  });
+}
+
+function showResumeEditor(show) {
+  document.getElementById('resumeEditor').classList.toggle('hidden', !show);
+  document.getElementById('resumeEditor').classList.toggle('flex', show);
+  document.getElementById('resumeEmptyState').classList.toggle('hidden', show);
+}
+
+async function saveCurrentResume() {
+  if (!currentResumeId) return;
+  const roles = document.getElementById('rRoles').value.split(',').map(s => s.trim()).filter(Boolean);
+  await api(`/api/resumes/${currentResumeId}`, 'PUT', {
+    name: document.getElementById('rName').value,
+    description: document.getElementById('rDesc').value,
+    content: document.getElementById('rContent').value,
+    target_roles: roles,
+  });
+  toast('Resume saved!', 'success');
+  loadResumeCards();
+}
+
+async function setDefault() {
+  if (!currentResumeId) return;
+  await api(`/api/resumes/${currentResumeId}`, 'PUT', { is_default: true });
+  toast('Set as default!', 'success');
+  document.getElementById('rDefaultBtn').textContent = '✓ Default';
+  loadResumeCards();
+}
+
+async function deleteCurrentResume() {
+  if (!currentResumeId) return;
+  if (!confirm('Delete this resume?')) return;
+  await api(`/api/resumes/${currentResumeId}`, 'DELETE');
+  currentResumeId = null;
+  showResumeEditor(false);
+  toast('Deleted', 'info');
+  loadResumeCards();
+}
+
+async function uploadPDF(input) {
+  if (!currentResumeId || !input.files[0]) return;
+  const form = new FormData();
+  form.append('file', input.files[0]);
+  toast('Uploading PDF...', 'info');
+  const r = await fetch(`/api/resumes/${currentResumeId}/upload-pdf`, { method: 'POST', body: form });
+  const d = await r.json();
+  if (d.ok) { toast('PDF uploaded!', 'success'); loadResumeCards(); }
+  else toast('Upload failed', 'error');
+}
+
+async function improveCurrentResume() {
+  const content = document.getElementById('rContent').value;
+  if (!content.trim()) { toast('Add resume text first', 'error'); return; }
+  if (currentResumeId) await api(`/api/resumes/${currentResumeId}`, 'PUT', { content });
+  toast('Sending to Gemini...', 'info');
+  const sug = document.getElementById('rSuggestions');
+  sug.innerHTML = '<p class="text-slate-400 animate-pulse text-xs">Analyzing with Gemini...</p>';
+  try {
+    const r = await api(`/api/resumes/${currentResumeId}/improve`, 'POST');
+    sug.innerHTML = '<ul class="space-y-2">' + r.suggestions.map(s =>
+      `<li class="flex gap-2 text-xs"><span class="text-green-500 flex-shrink-0 mt-0.5">→</span><span class="text-slate-700">${s}</span></li>`
+    ).join('') + '</ul>';
+    toast('Suggestions ready!', 'success');
+  } catch(e) { sug.innerHTML = `<p class="text-red-500 text-xs">${e.message}</p>`; }
+}
+
+// Add Resume Modal
+function openAddResume() {
+  document.getElementById('addResumeModal').classList.remove('hidden');
+  document.getElementById('newRName').focus();
+}
+function closeAddResume() {
+  document.getElementById('addResumeModal').classList.add('hidden');
+  ['newRName','newRDesc','newRRoles','newRContent'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('newRDefault').checked = false;
+}
+async function submitNewResume() {
+  const name = document.getElementById('newRName').value.trim();
+  if (!name) { toast('Resume name required', 'error'); return; }
+  const roles = document.getElementById('newRRoles').value.split(',').map(s => s.trim()).filter(Boolean);
+  const r = await api('/api/resumes', 'POST', {
+    name,
+    description: document.getElementById('newRDesc').value,
+    content: document.getElementById('newRContent').value,
+    target_roles: roles,
+    is_default: document.getElementById('newRDefault').checked,
+  });
+  closeAddResume();
+  toast(`Resume "${name}" created!`, 'success');
+  currentResumeId = r.id;
+  loadResumeCards();
+}
+
+// ── Batch Analyze ─────────────────────────────────────────────────────────────
+let batchPollInterval = null;
+
+async function triggerBatchAnalyze(btn) {
+  const prog = await api('/api/analyze/progress');
+  if (prog.running) { toast('Already running — check progress in stats', 'info'); return; }
+  if (!confirm('Analyze ALL unanalyzed jobs with Gemini? This runs 4 parallel workers and may take 10-30 minutes for 300+ jobs.')) return;
+  await api('/api/analyze/all', 'POST');
+  btn.textContent = '⏳ Analyzing...';
+  btn.disabled = true;
+  toast('Batch analysis started!', 'info');
+  batchPollInterval = setInterval(async () => {
+    const p = await api('/api/analyze/progress');
+    btn.textContent = `⏳ ${p.done}/${p.total}`;
+    document.getElementById('navStats').textContent += ` · AI: ${p.done}/${p.total}`;
+    if (!p.running) {
+      clearInterval(batchPollInterval);
+      btn.textContent = '✨ Analyze All';
+      btn.disabled = false;
+      toast(`Batch done! ${p.done} analyzed, ${p.failed} failed.`, 'success');
+      loadDashboard();
+    }
+  }, 5000);
+}
+
+// ── Follow-ups Tab ─────────────────────────────────────────────────────────────
+async function loadFollowups() {
+  const due = await api('/api/followups/due');
+  // Update badge
+  const badge = document.getElementById('followupBadge');
+  if (due.length) {
+    badge.textContent = due.length;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+  const el = document.getElementById('followupDue');
+  if (!due.length) {
+    el.innerHTML = '<div class="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">No follow-ups due right now. Check back in a few days.</div>';
+    return;
+  }
+  el.innerHTML = due.map(f => `
+    <div class="bg-white rounded-xl border border-orange-200 p-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="font-semibold text-slate-800">${f.job_title}</p>
+          <p class="text-sm text-slate-500">${f.company} · Applied ${f.applied_at?.slice(0,10)}</p>
+          <p class="text-xs text-orange-600 mt-1">📧 → ${f.hr_email} · Follow-up #${f.follow_up_num} · ${f.days_overdue}d overdue</p>
+        </div>
+        <button onclick="sendOneFollowup(${f.application_id})" class="text-sm bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 flex-shrink-0">Send Now</button>
+      </div>
+    </div>`).join('');
+}
+
+async function triggerFollowups(dryRun) {
+  const r = await api(`/api/followups/run?dry_run=${dryRun}`, 'POST');
+  toast(dryRun ? `Dry run: ${r.result?.sent || 0} would be sent` : `Sent ${r.result?.sent || 0} follow-ups`, 'success');
+  loadFollowups();
+}
+
+async function sendOneFollowup(appId) {
+  toast('Sending follow-up...', 'info');
+  await api('/api/followups/run?dry_run=false', 'POST');
+  toast('Follow-up sent!', 'success');
+  loadFollowups();
+}
+
+// ── Analytics ──────────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  const data = await api('/api/analytics');
+  document.getElementById('analyticsGrid').innerHTML = [
+    statCard(data.total_jobs, 'Total Jobs', '#1d4ed8'),
+    statCard(data.total_applications, 'Applications', '#2563eb'),
+    statCard(data.response_rate + '%', 'Response Rate', '#16a34a'),
+    statCard(Object.values(data.by_source).reduce((a,b)=>a+b,0), 'Sources', '#7c3aed'),
+  ].join('');
+
+  // Funnel
+  try {
+    const funnel = await api('/api/analytics/funnel');
+    const maxCount = Math.max(...funnel.funnel.map(f => f.count), 1);
+    const funnelColors = ['bg-slate-400','bg-blue-300','bg-blue-500','bg-purple-400','bg-purple-600','bg-teal-500','bg-yellow-500','bg-orange-500','bg-green-600'];
+    document.getElementById('funnelChart').innerHTML = funnel.funnel.map((f, i) => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-600 w-32 text-right flex-shrink-0">${f.stage}</span>
+        <div class="flex-1 bg-slate-100 rounded-full h-5 relative">
+          <div class="${funnelColors[i] || 'bg-blue-500'} h-5 rounded-full flex items-center justify-end pr-2" style="width:${Math.max(f.count/maxCount*100,2).toFixed(0)}%">
+          </div>
+        </div>
+        <span class="text-xs font-medium text-slate-700 w-16">${f.count} <span class="text-slate-400">(${f.pct}%)</span></span>
+      </div>`).join('');
+  } catch(e) {}
+
+  // Source chart
+  const maxSrc = Math.max(...Object.values(data.by_source), 1);
+  document.getElementById('sourceChart').innerHTML = Object.entries(data.by_source)
+    .sort((a,b) => b[1]-a[1])
+    .map(([src, cnt]) => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-600 w-16 text-right flex-shrink-0">${src}</span>
+        <div class="flex-1 bg-slate-100 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full" style="width:${(cnt/maxSrc*100).toFixed(0)}%"></div>
+        </div>
+        <span class="text-xs text-slate-500 w-8">${cnt}</span>
+      </div>`).join('');
+
+  // Score chart
+  const maxBkt = Math.max(...Object.values(data.by_score_bucket), 1);
+  const bktColors = { '0-40': 'bg-slate-400', '41-60': 'bg-amber-400', '61-80': 'bg-blue-400', '81-100': 'bg-green-500' };
+  document.getElementById('scoreChart').innerHTML = Object.entries(data.by_score_bucket)
+    .map(([bkt, cnt]) => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-600 w-16 text-right flex-shrink-0">${bkt}</span>
+        <div class="flex-1 bg-slate-100 rounded-full h-2">
+          <div class="${bktColors[bkt]} h-2 rounded-full" style="width:${(cnt/maxBkt*100).toFixed(0)}%"></div>
+        </div>
+        <span class="text-xs text-slate-500 w-8">${cnt}</span>
+      </div>`).join('');
+
+  // Telegram
+  const tg = await api('/api/telegram/status');
+  document.getElementById('telegramStatus').innerHTML = tg.configured
+    ? '<p class="text-green-600">✓ Telegram configured — alerts active</p>'
+    : `<div class="text-slate-600 space-y-1">${tg.setup_steps.map(s => `<p>${s}</p>`).join('')}</div>`;
+
+  // Logs
+  const logs = await api('/api/logs?limit=20');
+  document.getElementById('logsTable').innerHTML = logs.map(l => `
+    <div class="flex gap-3 text-slate-500 ${l.error ? 'text-red-400' : ''}">
+      <span class="text-slate-300 w-36 flex-shrink-0">${l.timestamp?.slice(0,19).replace('T',' ')}</span>
+      <span class="w-16 font-medium">${l.source}</span>
+      <span>${l.jobs_found ?? 0} found, ${l.jobs_new ?? 0} new</span>
+      ${l.error ? `<span class="text-red-400 truncate">${l.error.slice(0,60)}</span>` : ''}
+    </div>`).join('');
+}
+
+// ── Coach Tab ─────────────────────────────────────────────────────────────────
+async function loadCoach() {
+  loadDailyRecs();
+  loadHeatmap();
+  loadCodingPractice();
+  loadWatchlist();
+  loadOutreachTemplates();
+  loadAchievements();
+}
+
+// Achievements
+async function loadAchievements() {
+  try {
+    const a = await api('/api/achievements');
+    document.getElementById('achCount').textContent = `${a.unlocked_count}/${a.total_badges} unlocked`;
+    document.getElementById('achLevel').textContent = `Level ${a.level.number}: ${a.level.name}${a.level.badges_to_next ? ` · ${a.level.badges_to_next} to next` : ''}`;
+    document.getElementById('achMilestone').textContent = `🎯 ${a.next_milestone}`;
+    const cards = [...a.unlocked.map(b => ({...b, unlocked: true})), ...a.locked.map(b => ({...b, unlocked: false}))];
+    document.getElementById('achievements').innerHTML = cards.map(b => `
+      <div class="text-center p-2 rounded-xl ${b.unlocked ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200' : 'bg-slate-50 border border-slate-100 opacity-40'}"
+        title="${b.desc}">
+        <div class="text-3xl">${b.icon}</div>
+        <p class="text-xs font-medium mt-1 ${b.unlocked ? 'text-amber-800' : 'text-slate-400'}">${b.title}</p>
+      </div>`).join('');
+  } catch(e) { console.warn(e); }
+}
+
+// AI Coach Chat
+let coachHistory = [];
+async function askCoach() {
+  const msg = document.getElementById('coachInput').value.trim();
+  if (!msg) return;
+  document.getElementById('coachInput').value = '';
+  const chatBox = document.getElementById('coachChat');
+  chatBox.innerHTML += `<div class="bg-blue-50 border-l-2 border-blue-400 p-2 rounded text-sm"><strong>You:</strong> ${msg}</div>`;
+  chatBox.innerHTML += '<div id="coachThinking" class="text-slate-400 animate-pulse text-sm">Coach is thinking...</div>';
+  chatBox.scrollTop = chatBox.scrollHeight;
+  try {
+    const r = await api('/api/coach/chat', 'POST', { history: coachHistory, message: msg });
+    coachHistory = r.history;
+    document.getElementById('coachThinking').remove();
+    chatBox.innerHTML += `<div class="bg-slate-50 border-l-2 border-slate-400 p-2 rounded text-sm whitespace-pre-wrap"><strong>Coach:</strong> ${r.response}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  } catch(e) {
+    document.getElementById('coachThinking').remove();
+    chatBox.innerHTML += `<div class="text-red-500 text-sm">${e.message}</div>`;
+  }
+}
+
+// Coding practice
+async function loadCodingPractice() {
+  try {
+    const [problem, streak] = await Promise.all([
+      api('/api/coding/daily'),
+      api('/api/coding/streak'),
+    ]);
+    document.getElementById('codingStreak').innerHTML =
+      streak.streak > 0 ? `🔥 ${streak.streak} day streak · ${streak.total_solved} solved` : `${streak.total_solved} solved`;
+    const diffColor = problem.difficulty === 'Easy' ? 'green' : problem.difficulty === 'Hard' ? 'red' : 'amber';
+    document.getElementById('codingProblem').innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="font-semibold text-slate-800">${problem.problem}</p>
+          <p class="text-xs text-slate-500 mt-1">${problem.topic} · <span class="text-${diffColor}-600 font-medium">${problem.difficulty}</span></p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <a href="${problem.platform_url}" target="_blank" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">Solve ↗</a>
+          ${problem.completed
+            ? '<span class="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg">✓ Done</span>'
+            : `<button onclick="markCodingDone('${problem.date}')" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200">Mark Done</button>`}
+        </div>
+      </div>`;
+  } catch(e) { console.warn(e); }
+}
+
+async function markCodingDone(date) {
+  await api(`/api/coding/${date}/complete`, 'POST');
+  toast('Great work! 🎉', 'success');
+  loadCodingPractice();
+}
+
+// Watchlist
+async function loadWatchlist() {
+  const watches = await api('/api/watchlist');
+  document.getElementById('watchlistBox').innerHTML = watches.length
+    ? watches.map(w => `
+      <div class="flex items-center justify-between border border-slate-200 rounded-xl p-3">
+        <div>
+          <p class="font-medium text-slate-800 text-sm">${w.company} ${w.role_filter ? `· <span class="text-blue-600">${w.role_filter}</span>` : ''}</p>
+          <p class="text-xs text-slate-500">${w.total_jobs} jobs (${w.new_jobs} new) · min score ${w.min_score}</p>
+          ${w.best_match ? `<p class="text-xs text-green-600 mt-0.5">Best: ${w.best_match.title} (${w.best_match.score})</p>` : ''}
+        </div>
+        <button onclick="removeWatch(${w.id})" class="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-lg hover:bg-red-100">Remove</button>
+      </div>`).join('')
+    : '<p class="text-slate-400 text-sm">No watches. Add a target company above.</p>';
+}
+
+async function addToWatchlist() {
+  const company = document.getElementById('watchCompany').value.trim();
+  if (!company) { toast('Company required', 'error'); return; }
+  await api('/api/watchlist', 'POST', {
+    company,
+    role_filter: document.getElementById('watchRole').value,
+    min_score: 50,
+  });
+  document.getElementById('watchCompany').value = '';
+  document.getElementById('watchRole').value = '';
+  toast('Added to watchlist!', 'success');
+  loadWatchlist();
+}
+
+async function removeWatch(id) {
+  await api(`/api/watchlist/${id}`, 'DELETE');
+  loadWatchlist();
+}
+
+// Outreach templates
+async function loadOutreachTemplates() {
+  const templates = await api('/api/outreach/templates');
+  const sel = document.getElementById('outTemplate');
+  sel.innerHTML = templates.map(t =>
+    `<option value="${t.key}">${t.name}</option>`
+  ).join('');
+}
+
+async function generateOutreach(withGemini) {
+  const company = document.getElementById('outCompany').value.trim();
+  if (!company) { toast('Target company required', 'error'); return; }
+  const result = document.getElementById('outResult');
+  result.classList.remove('hidden');
+  result.innerHTML = '<p class="text-slate-400 animate-pulse">Generating...</p>';
+  try {
+    const r = await api('/api/outreach/personalize', 'POST', {
+      template_key: document.getElementById('outTemplate').value,
+      target_company: company,
+      target_role: document.getElementById('outRole').value || 'this role',
+      target_person_name: document.getElementById('outPerson').value,
+      personalize_with_gemini: withGemini,
+    });
+    result.innerHTML = `
+      <div class="mb-2 text-xs text-slate-500">${r.length} chars · ${withGemini ? '✨ Gemini personalized' : 'Template'}</div>
+      <div class="whitespace-pre-wrap">${r.message}</div>
+      <button onclick="navigator.clipboard.writeText(\`${r.message.replace(/`/g,'\\`')}\`);toast('Copied!','success')" class="mt-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200">Copy</button>`;
+  } catch(e) { result.innerHTML = `<p class="text-red-500">${e.message}</p>`; }
+}
+
+async function loadSalaryIntel() {
+  const role = document.getElementById('salRole').value;
+  const loc = document.getElementById('salLoc').value;
+  const el = document.getElementById('salaryIntel');
+  el.innerHTML = '<p class="text-slate-400 animate-pulse">Analyzing market salary data...</p>';
+  try {
+    const r = await api(`/api/salary-intel?role=${encodeURIComponent(role)}&location=${encodeURIComponent(loc)}`);
+    if (r.sample_size === 0) {
+      el.innerHTML = `<p class="text-slate-500">${r.message}</p>`;
+      return;
+    }
+    const fmt = n => '₹' + Math.round(n/100000) + 'L';
+    el.innerHTML = `
+      <div class="grid grid-cols-4 gap-3 mb-4">
+        <div class="bg-slate-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-slate-700">${fmt(r.p25_inr)}</div>
+          <div class="text-xs text-slate-400 mt-1">25th</div>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-3 text-center border-2 border-blue-200">
+          <div class="text-xl font-bold text-blue-700">${fmt(r.p50_inr)}</div>
+          <div class="text-xs text-blue-600 mt-1">Median</div>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-green-700">${fmt(r.p75_inr)}</div>
+          <div class="text-xs text-slate-400 mt-1">75th</div>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-amber-700">${fmt(r.p90_inr)}</div>
+          <div class="text-xs text-slate-400 mt-1">Top 10%</div>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mb-2">Sample: ${r.sample_size} jobs · Range: ${fmt(r.min_seen)} – ${fmt(r.max_seen)}</p>
+      <div class="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap">${r.negotiation_advice || ''}</div>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500">${e.message}</p>`; }
+}
+
+async function loadHeatmap() {
+  const el = document.getElementById('heatmapBox');
+  try {
+    const r = await api('/api/heatmap?days=60');
+    const max = Math.max(...r.series.map(d => d.applications), 1);
+    const totals = r.totals;
+    const cellColor = (n) => {
+      if (n === 0) return 'bg-slate-100';
+      const intensity = Math.min(n / max, 1);
+      if (intensity > 0.75) return 'bg-green-600';
+      if (intensity > 0.50) return 'bg-green-500';
+      if (intensity > 0.25) return 'bg-green-400';
+      return 'bg-green-300';
+    };
+    el.innerHTML = `
+      <div class="grid grid-cols-5 gap-3 mb-3">
+        <div class="bg-blue-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-blue-700">${totals.applications}</div>
+          <div class="text-xs text-slate-500 mt-1">Applied</div>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-green-700">${totals.responses}</div>
+          <div class="text-xs text-slate-500 mt-1">Responses</div>
+        </div>
+        <div class="bg-purple-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-purple-700">${totals.interviews}</div>
+          <div class="text-xs text-slate-500 mt-1">Interviews</div>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-amber-700">${totals.streak}</div>
+          <div class="text-xs text-slate-500 mt-1">Day Streak</div>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-bold text-slate-700">${totals.best_day_of_week}</div>
+          <div class="text-xs text-slate-500 mt-1">Best Day</div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        ${r.series.map(d => `
+          <div title="${d.date}: ${d.applications} apps, ${d.responses} resp, ${d.interviews} intv"
+            class="w-3 h-3 rounded-sm ${cellColor(d.applications)}"></div>
+        `).join('')}
+      </div>
+      <p class="text-xs text-slate-400 mt-2">Each square = 1 day. Hover for details. Darker = more applications.</p>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500">${e.message}</p>`; }
+}
+
+async function loadOutreach() {
+  const el = document.getElementById('outreachBox');
+  el.innerHTML = '<p class="text-slate-400 animate-pulse">Gemini drafting outreach plan...</p>';
+  try {
+    const r = await api('/api/network/outreach');
+    el.innerHTML = `
+      ${r.target_companies?.length ? `<div class="mb-3">
+        <p class="text-xs font-semibold text-slate-600 mb-1">TARGET COMPANIES THIS WEEK</p>
+        <div class="flex flex-wrap gap-1">
+          ${r.target_companies.map(c => `<span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">${c}</span>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap mb-2">${r.outreach_actions || ''}</div>
+      <p class="text-xs text-amber-700">💡 ${r.tip}</p>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500">${e.message}</p>`; }
+}
+
+async function loadReapply() {
+  const el = document.getElementById('reapplyBox');
+  try {
+    const r = await api('/api/reapply/candidates');
+    if (!r.length) {
+      el.innerHTML = '<p class="text-slate-500">No re-apply candidates right now. Keep applying!</p>';
+      return;
+    }
+    el.innerHTML = r.map(c => `
+      <div class="border border-slate-200 rounded-xl p-3 mb-2">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="font-medium text-slate-800 text-sm">${c.original_title} @ ${c.company}</p>
+            <p class="text-xs text-slate-500">${c.suggestion}</p>
+            ${c.newer_job_title ? `<p class="text-xs text-blue-600 mt-1">→ New opening: <strong>${c.newer_job_title}</strong></p>` : ''}
+          </div>
+          ${c.newer_job_available ? `<button onclick="openJob(${c.newer_job_available})" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex-shrink-0">View</button>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<p class="text-red-500">${e.message}</p>`; }
+}
+
+async function loadDailyRecs() {
+  const el = document.getElementById('dailyRecs');
+  el.innerHTML = '<p class="text-slate-400 animate-pulse text-sm">Gemini picking top 3...</p>';
+  try {
+    const r = await api('/api/recommendations/daily');
+    if (!r.top3?.length) {
+      el.innerHTML = '<p class="text-slate-400 text-sm">No high-score jobs available. Run Scrape first.</p>';
+      return;
+    }
+    el.innerHTML = r.top3.map((j, i) => `
+      <div class="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">#${i+1}</span>
+              <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Score ${j.score}</span>
+            </div>
+            <p class="font-semibold text-slate-900">${j.title}</p>
+            <p class="text-sm text-slate-500">${j.company} · ${j.location}</p>
+            ${j.salary ? `<p class="text-sm text-green-600 mt-1">${j.salary}</p>` : ''}
+          </div>
+          <div class="flex flex-col gap-2 flex-shrink-0">
+            <button onclick="openJob(${j.id})" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200">View</button>
+            <a href="${j.url}" target="_blank" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-center">Apply ↗</a>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`;
+  }
+}
+
+async function loadSkillCoach() {
+  const el = document.getElementById('skillCoach');
+  el.innerHTML = '<p class="text-slate-400 animate-pulse">Analyzing skill gaps with Gemini...</p>';
+  try {
+    const r = await api('/api/skill-coach/analysis');
+    if (!r.top_gaps?.length) {
+      el.innerHTML = '<p class="text-slate-500">No gaps detected. Run "Analyze All" on the dashboard first.</p>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="mb-4">
+        <p class="text-xs font-semibold text-slate-600 mb-2">TOP MISSING SKILLS</p>
+        <div class="flex flex-wrap gap-2">
+          ${r.top_gaps.map(g => `<span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full">${g.skill} <strong>×${g.count}</strong></span>`).join('')}
+        </div>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-slate-600 mb-2">✨ 30-DAY LEARNING ROADMAP</p>
+        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${r.learning_roadmap}</div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<p class="text-red-500">${e.message}</p>`;
+  }
+}
+
+// Mock Interview state
+let mockHistory = [];
+let mockJobId = null;
+let mockJobTitle = '';
+
+async function startMockInterview() {
+  const id = parseInt(document.getElementById('mockJobId').value);
+  if (!id) { toast('Enter a job ID', 'error'); return; }
+  mockJobId = id;
+  document.getElementById('mockChat').classList.remove('hidden');
+  document.getElementById('mockMessages').innerHTML = '<p class="text-slate-400 animate-pulse">Gemini starting interview...</p>';
+  try {
+    const r = await api('/api/mock-interview/start', 'POST', { job_id: id });
+    mockHistory = r.history;
+    mockJobTitle = r.job_title || '';
+    renderMockChat();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function sendMockAnswer() {
+  const answer = document.getElementById('mockAnswer').value.trim();
+  if (!answer) return;
+  mockHistory.push({ role: 'candidate', text: answer });
+  document.getElementById('mockAnswer').value = '';
+  renderMockChat();
+  appendMockMessage('interviewer', '<span class="text-slate-400 animate-pulse">thinking...</span>');
+  try {
+    const r = await api('/api/mock-interview/continue', 'POST', {
+      job_id: mockJobId, history: mockHistory.slice(0, -1), answer,
+    });
+    mockHistory = r.history;
+    renderMockChat();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function renderMockChat() {
+  document.getElementById('mockMessages').innerHTML = mockHistory.map(m => `
+    <div class="${m.role === 'interviewer' ? 'bg-blue-50 border-l-4 border-blue-400' : 'bg-white border border-slate-200 ml-8'} p-3 rounded-xl">
+      <p class="text-xs font-semibold ${m.role === 'interviewer' ? 'text-blue-700' : 'text-slate-700'} mb-1">${m.role === 'interviewer' ? '🤖 Interviewer' : '👤 You'}</p>
+      <p class="text-sm text-slate-700 whitespace-pre-wrap">${m.text}</p>
+    </div>`).join('');
+  const c = document.getElementById('mockMessages');
+  c.scrollTop = c.scrollHeight;
+}
+
+function appendMockMessage(role, html) {
+  const div = document.createElement('div');
+  div.className = role === 'interviewer' ? 'bg-blue-50 border-l-4 border-blue-400 p-3 rounded-xl' : 'bg-white border border-slate-200 ml-8 p-3 rounded-xl';
+  div.innerHTML = `<p class="text-xs font-semibold ${role === 'interviewer' ? 'text-blue-700' : 'text-slate-700'} mb-1">${role === 'interviewer' ? '🤖 Interviewer' : '👤 You'}</p><p class="text-sm text-slate-700">${html}</p>`;
+  document.getElementById('mockMessages').appendChild(div);
+}
+
+async function endMockInterview() {
+  if (!mockHistory.length) return;
+  toast('Generating final feedback...', 'info');
+  try {
+    const r = await api('/api/mock-interview/feedback', 'POST', {
+      job_title: mockJobTitle || `Job #${mockJobId}`, history: mockHistory,
+    });
+    document.getElementById('mockMessages').innerHTML += `
+      <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl mt-4">
+        <p class="text-xs font-bold text-amber-700 mb-2">📊 FINAL FEEDBACK</p>
+        <p class="text-sm text-slate-700 whitespace-pre-wrap">${r.feedback}</p>
+      </div>`;
+    const c = document.getElementById('mockMessages');
+    c.scrollTop = c.scrollHeight;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function generateRefLetter() {
+  const name = document.getElementById('refName').value.trim();
+  if (!name) { toast('Reference name required', 'error'); return; }
+  toast('Gemini drafting letter...', 'info');
+  try {
+    const r = await api('/api/reference-letter/generate', 'POST', {
+      reference_name: name,
+      role_at_previous_company: document.getElementById('refRole').value,
+      company: document.getElementById('refCompany').value,
+      target_role: document.getElementById('refTarget').value,
+    });
+    const out = document.getElementById('refLetterResult');
+    out.textContent = r.letter;
+    out.classList.remove('hidden');
+    toast('Letter ready!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function testTelegram() {
+  const r = await api('/api/telegram/test', 'POST');
+  toast(r.ok ? '✓ Telegram test sent!' : r.message, r.ok ? 'success' : 'error');
+}
+
+function setupTelegram() {
+  alert('Setup:\n1. Open @BotFather in Telegram → /newbot\n2. Copy token → add TELEGRAM_BOT_TOKEN=<token> to .env\n3. Message your bot once\n4. Open: GET /api/telegram/get-chat-id?token=<token>\n5. Add TELEGRAM_CHAT_ID=<id> to .env\n6. Restart server');
+}
+
+// ── Global Actions ─────────────────────────────────────────────────────────────
+async function triggerScrape(btn) {
+  const orig = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  await api('/api/scrape', 'POST');
+  toast('Scraping started...', 'info');
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.disabled = false;
+    loadDashboard();
+    if (!document.getElementById('tab-jobs-content').classList.contains('hidden')) loadJobs();
+  }, 8000);
+}
+
+async function triggerAutoApply() {
+  const dryRun = !confirm('Enable LIVE auto-apply? OK = send real emails, Cancel = dry run only.');
+  toast(`Auto-apply starting (dry_run=${dryRun})...`, 'info');
+  try {
+    const r = await api(`/api/auto-apply/run?dry_run=${dryRun}`, 'POST');
+    toast(`Auto-apply: ${JSON.stringify(r.result)}`, 'success');
+    loadDashboard();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadDashboard();
+setInterval(loadDashboard, 5 * 60 * 1000);
+// Pre-check follow-up badge on load
+api('/api/followups/due').then(d => {
+  if (d.length) {
+    const b = document.getElementById('followupBadge');
+    b.textContent = d.length;
+    b.classList.remove('hidden');
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>
